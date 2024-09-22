@@ -21,7 +21,15 @@ StarkParking is a parking application built on the Starknet platform, allowing u
 - Prices will be set in `cents (USD)` and pegged to the value of `USDT`.
 - An oracle will be used to convert the price from USD to the equivalent amount in `STRK`.
 
-### 4. Data Storage
+### 5. Mobile App Integration
+
+- Users can make reservations and payments via a mobile app.
+- The app sends notifications when the booking time is about to expire, allowing users to extend their booking time.
+- Parking lot managers can verify the license plate of parked vehicles against the reservation.
+- Correctly parked vehicles can leave, while mismatched vehicles face penalties.
+- The app integrates with ArgentX Mobile for wallet management, enabling users to create new wallets or import private keys.
+
+### 5. Data Storage
 
 - All information about parking lots and bookings will be stored on the blockchain to ensure transparency and security.
 
@@ -46,13 +54,14 @@ struct ParkingLot {
 
 ```rust
 struct Booking {
-  booking_id: felt252,
-  lot_id: u256,
-  slot: u8,
-  entry_time: u256,
-  exit_time: u256,
-  total_payment: u64,
-  payer: ContractAddress
+  booking_id: felt252, // Unique identifier for the booking
+  lot_id: u256, // Associated parking lot
+  slot: u8, // number reserved
+  entry_time: u256, // Timestamp of entry
+  exit_time: u256, // Timestamp of exit
+  total_payment: u64, // Total payment amount in cents
+  payer: ContractAddress, // Wallet address of the user
+  license_plate: fel252 // Vehicle license plate number
 }
 ```
 
