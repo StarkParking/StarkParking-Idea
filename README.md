@@ -21,15 +21,18 @@ StarkParking is a parking application built on the Starknet platform, allowing u
 - Prices will be set in `cents (USD)` and pegged to the value of `USDT`.
 - An oracle will be used to convert the price from USD to the equivalent amount in `STRK`.
 
-### 5. Mobile App Integration
+### 4. Telegram Mini App Integration
 
-- Users can make reservations and payments via a mobile app.
-- The app sends notifications when the booking time is about to expire, allowing users to extend their booking time.
+- Users can make reservations and payments via a Telegram Mini App.
+- The app sends notifications via Telegram Bot when the booking time is about to expire, allowing users to extend their booking time.
 - Parking lot managers can verify the license plate of parked vehicles against the reservation.
 - Correctly parked vehicles can leave, while mismatched vehicles face penalties.
-- The app integrates with ArgentX Mobile for wallet management, enabling users to create new wallets or import private keys.
 
-### 5. Data Storage
+### 5. License Plate Validity Check
+- Parking lot managers can check if a vehicle’s license plate is valid for a given parking lot.
+- If the license plate is found to be invalid, the manager can impose penalties, ensuring compliance with parking regulations.
+
+### 6. Data Storage
 
 - All information about parking lots and bookings will be stored on the blockchain to ensure transparency and security.
 
@@ -39,14 +42,16 @@ StarkParking is a parking application built on the Starknet platform, allowing u
 
 ```rust
 struct ParkingLot {
-  lot_id: u256,
-  name: felt252,
-  location: felt252,
-  slot_count: u32,
-  price_per_hour_usd: u64,
-  creator: ContractAddress,
-  wallet_address: ContractAddress,
-  registration_time: u256
+    lot_id: u256, // Associated parking lot
+    name: felt252,
+    location: felt252,
+    coordinates: felt252,
+    slot_count: u32,
+    hourly_rate_usd_cents: u32,
+    creator: ContractAddress,
+    wallet_address: ContractAddress,
+    is_active: bool,
+    registration_time: u64
 }
 ```
 
@@ -54,14 +59,14 @@ struct ParkingLot {
 
 ```rust
 struct Booking {
-  booking_id: felt252, // Unique identifier for the booking
-  lot_id: u256, // Associated parking lot
-  slot: u8, // number reserved
-  entry_time: u256, // Timestamp of entry
-  exit_time: u256, // Timestamp of exit
-  total_payment: u64, // Total payment amount in cents
-  payer: ContractAddress, // Wallet address of the user
-  license_plate: fel252 // Vehicle license plate number
+    license_plate: felt252, // Vehicle license plate number
+    booking_id: felt252, // Unique identifier for the booking
+    lot_id: u256, // Associated parking lot
+    entry_time: u64, // Timestamp of entry
+    exit_time: u64, // Timestamp of exit
+    expiration_time: u64, // Timestamp indicating when the booking expires
+    total_payment: u64, // Total payment amount in cents
+    payer: ContractAddress // Wallet address of the user
 }
 ```
 
@@ -70,12 +75,60 @@ struct Booking {
 ```rust
 #[storage]
 struct Storage {
-  #[substorage(v0)]
-  ownable: OwnableComponent::Storage,
-  parking_lots: Map::<u256, ParkingLot>, // Mapping from lot_id to ParkingLot
-  bookings: Map::<felt252, Booking>, // Mapping from booking_id to Booking
-  available_slots: Map::<u256, u32>, // Mapping from lot_id to available slots
-  payment_token: ContractAddress,
-  ...
+    parking_lots: Map::<u256, ParkingLot>, // Mapping from lot_id to ParkingLot
+    bookings: Map::<felt252, Booking>, // Mapping from booking_id to Booking
+    available_slots: Map::<u256, u32>, // Mapping from lot_id to available slots
+    payment_token: ContractAddress, // TODO: remove it
+    license_plate_to_booking: Map::<felt252, felt252> // License_plate to booking_id
+    ...
+    ...
+}
+```
+
+## Interface
+
+```rust
+#[starknet::interface]
+pub trait IParking<TContractState> {
+    // Register a new parking lot
+    fn register_parking_lot(
+        ref self: TContractState,
+        lot_id: u256,
+        name: felt252,
+        location: felt252,
+        coordinates: felt252,
+        slot_count: u32,
+        hourly_rate_usd_cents: u32, // 100 = $1
+        wallet_address: ContractAddress
+    );
+
+    // Create a booking for a parking spot
+    fn book_parking(
+        ref self: TContractState,
+        booking_id: felt252,
+        lot_id: u256,
+        payment_token: ContractAddress,
+        license_plate: felt252,
+        duration: u32, // Duration in hours
+    );
+
+    // End a parking session
+    fn end_parking(ref self: TContractState, booking_id: felt252);
+
+    // Extend a parking session
+    fn extend_parking(
+        ref self: TContractState,
+        booking_id: felt252,
+        additional_hours: u32,
+        payment_token: ContractAddress
+    );
+
+    // Get available slots in a parking lot
+    fn get_available_slots(self: @TContractState, lot_id: u256) -> u32;
+
+    // Validate if the vehicle license plate is valid for the given lot
+    fn validate_license_plate(self: @TContractState, lot_id: u256, license_plate: felt252) -> bool;
+    ...
+    ...
 }
 ```
